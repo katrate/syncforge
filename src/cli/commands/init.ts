@@ -10,6 +10,7 @@
 import { loadConfig } from '../../config/index.js';
 import { v4 as uuid } from 'uuid';
 import { readConfig, saveConfig, type AgentConfig } from '../config-store.js';
+import { startCommand } from './start.js';
 import chalk from 'chalk';
 import path from 'path';
 import os from 'os';
@@ -84,8 +85,10 @@ export async function initCommand(options: InitOptions): Promise<void> {
     console.log(chalk.dim('Tell your partner to run this:'));
     console.log(`  ${chalk.bold(`syncforge join ${data.projectId} --server http://${localIp}:4200`)}`);
     console.log();
-    console.log(chalk.dim('To start syncing:'));
-    console.log(`  ${chalk.bold('syncforge start')}`);
+    console.log(chalk.dim('Starting sync...'));
+
+    // Auto-start syncing
+    await startCommand({});
 
 
   } catch (err) {

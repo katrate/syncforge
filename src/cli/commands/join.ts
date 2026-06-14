@@ -11,6 +11,7 @@
 import { loadConfig } from '../../config/index.js';
 import { v4 as uuid } from 'uuid';
 import { saveConfig, type AgentConfig, readConfig } from '../config-store.js';
+import { startCommand } from './start.js';
 import chalk from 'chalk';
 import os from 'os';
 
@@ -75,9 +76,10 @@ export async function joinCommand(projectIdOrToken: string, options: JoinOptions
     console.log(`  ${chalk.bold('Owner:')}   ${chalk.dim(data.ownerId)}`);
     console.log(`  ${chalk.bold('Server:')}  ${chalk.dim(API_BASE)}`);
     console.log();
-    console.log(chalk.dim('To start syncing:'));
-    console.log(`  ${chalk.bold('syncforge start')}`);
-    console.log(`  ${chalk.dim('(Server URL saved — no need to set it again)')}`);
+    console.log(chalk.dim('Starting sync...'));
+
+    // Auto-start syncing
+    await startCommand({});
   } catch (err) {
     let message: string;
     if (err instanceof Error) {
