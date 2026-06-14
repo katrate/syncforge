@@ -13,7 +13,6 @@
 
 import fs from 'fs';
 import path from 'path';
-import { createInterface } from 'readline';
 import { execSync } from 'child_process';
 
 /* ─── Helpers ─── */
@@ -244,24 +243,10 @@ async function main() {
     return;
   }
 
-  // Confirm uninstall
-  if (!force && process.stdout.isTTY) {
-    const rl = createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
-    const answer = await new Promise((resolve) => {
-      rl.question(`\n${yellow('?')} Remove all SyncForge files? This cannot be undone. [y/N] `, (ans) => {
-        resolve(ans.toLowerCase() === 'y');
-      });
-      rl.close();
-    });
-
-    if (!answer) {
-      console.log('  Uninstall cancelled.');
-      return;
-    }
+  // Prompt is handled in the CLI command (uninstall.ts) — always run with --force here.
+  // If --force wasn't passed, the CLI prompts first and then passes it.
+  if (!force) {
+    console.log(`  ${dim('Running uninstall...')}`);
   }
 
   console.log();

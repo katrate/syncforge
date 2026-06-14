@@ -18,7 +18,6 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
-import { createInterface } from 'readline';
 
 const REPO = process.env.SYNCFORGE_REPO || 'katrate/syncforge';
 const API_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
@@ -271,24 +270,11 @@ async function main() {
     return;
   }
 
-  // Confirm update
-  if (process.stdout.isTTY && !force) {
-    const rl = createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
-    const answer = await new Promise((resolve) => {
-      rl.question(`${yellow('?')} Update to v${latestVersion}? [Y/n] `, (ans) => {
-        resolve(ans.toLowerCase() === 'y' || ans === '');
-      });
-      rl.close();
-    });
-
-    if (!answer) {
-      console.log('  Update cancelled.');
-      return;
-    }
+  // Prompt is handled in the CLI command (update.ts) — the script always runs with --force
+  // or non-interactively. If --force wasn't passed and we get here, auto-confirm.
+  if (!force && !checkOnly) {
+    // Non-TTY mode or called without --force — auto-confirm update
+    console.log(`  ${dim('Auto-confirming update...')}`);
   }
 
   const success = await performUpdate(release);
