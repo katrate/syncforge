@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# SyncForge — Unix CLI launcher (macOS / Linux)
+#
+# This shell script allows running SyncForge from any directory
+# when added to PATH. It detects whether the project is built
+# and runs accordingly.
+
+set -e
+
+# Find the SyncForge installation directory
+SF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check if dist exists (built version)
+if [ -f "$SF_DIR/../dist/agent.js" ]; then
+  node "$SF_DIR/../dist/agent.js" "$@"
+  exit $?
+fi
+
+# Check if src exists (source version — run via tsx)
+if [ -f "$SF_DIR/../src/agent.ts" ]; then
+  npx tsx "$SF_DIR/../src/agent.ts" "$@"
+  exit $?
+fi
+
+# Also check the npm global style layout
+if [ -f "$SF_DIR/../../dist/agent.js" ]; then
+  node "$SF_DIR/../../dist/agent.js" "$@"
+  exit $?
+fi
+
+echo "Error: SyncForge installation not found."
+exit 1

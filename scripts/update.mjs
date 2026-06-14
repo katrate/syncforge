@@ -22,12 +22,9 @@ import { createInterface } from 'readline';
 
 const REPO = process.env.SYNCFORGE_REPO || 'katrate/syncforge';
 const API_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
-const CURRENT_VERSION = '0.1.0';
-
 /* ─── Helpers ─── */
 
 function color(s, code) {
-  // Only add color if stdout is a TTY
   return process.stdout.isTTY ? `\x1b[${code}m${s}\x1b[0m` : s;
 }
 
@@ -39,17 +36,19 @@ const bold = (s) => color(s, '1');
 const dim = (s) => color(s, '2');
 
 function projectRoot() {
-  return path.resolve(new URL('.', import.meta.url).pathname, '..');
+  const url = new URL('.', import.meta.url).pathname;
+  // Handle Windows paths from file:// URLs
+  return path.resolve(url.startsWith('/') && url.includes(':') ? url.slice(1) : url, '..');
 }
 
-function readPackageJson() {
-  const pkgPath = path.join(projectRoot(), 'package.json');
-  return JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-}
-
-function writePackageJson(pkg) {
-  const pkgPath = path.join(projectRoot(), 'package.json');
-  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+function readCurrentVersion() {
+  try {
+    const pkgPath = path.join(projectRoot(), 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    return pkg.version || '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
 }
 
 /* ─── GitHub API ─── */
@@ -60,7 +59,11 @@ async function fetchLatestRelease() {
     'User-Agent': 'syncforge-updater',
   };
 
-  const response = await fetch(API_URL, { headers });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  
+  const response = await fetch(API_URL, { headers, signal: controller.signal });
+  clearTimeout(timeout);
 
   if (!response.ok) {
     throw new Error(`GitHub API returned ${response.status}: ${response.statusText}`);
@@ -91,7 +94,8 @@ function isNewer(latest, current) {
 
 async function checkForUpdates() {
   console.log(`${cyan('◇')} Checking for updates...`);
-  console.log(`  ${dim('Current version:')} ${bold(CURRENT_VERSION)}`);
+  const currentVersion = readCurrentVersion();
+  console.log(`  ${dim('Current version:')} ${bold(currentVersion)}`);
   console.log(`  ${dim('Repository:')}     ${REPO}`);
 
   let release;
@@ -109,10 +113,10 @@ async function checkForUpdates() {
 }
 
 async function performUpdate(release) {
-  const pkg = readPackageJson();
+  const currentVer = readCurrentVersion();
   const latestVersion = release.tag_name.replace(/^v/, '');
   
-  console.log(`\n${green('▼')} Updating SyncForge ${bold(pkg.version)} → ${bold(latestVersion)}`);
+  console.log(`\n${green('▼')} Updating SyncForge ${bold(currentVer)} → ${bold(latestVersion)}`);
 
   // Find the source code archive
   const tarballUrl = release.tarball_url || release.zipball_url;
@@ -125,9 +129,14 @@ async function performUpdate(release) {
 
   try {
     // Download the release tarball
+    const dlController = new AbortController();
+    const dlTimeout = setTimeout(() => dlController.abort(), 60000);
+    
     const response = await fetch(tarballUrl, {
       headers: { 'User-Agent': 'syncforge-updater' },
+      signal: dlController.signal,
     });
+    clearTimeout(dlTimeout);
 
     if (!response.ok) {
       throw new Error(`Download failed: ${response.status}`);
@@ -146,10 +155,13 @@ async function performUpdate(release) {
     const tarballPath = path.join(tmpDir, 'update.tar.gz');
     fs.writeFileSync(tarballPath, buffer);
 
-    // Extract based on URL type (tar.gz or zip)
-    if (tarballUrl.endsWith('.zip')) {
-      execSync(`cd "${tmpDir}" && unzip -q "${tarballPath}"`, { stdio: 'pipe' });
+    // Extract archive — works on macOS, Linux, and Windows 10+
+    const isWindows = process.platform === 'win32';
+    if (isWindows && tarballUrl.endsWith('.zip')) {
+      // Windows with zip: use PowerShell
+      execSync(`powershell -Command "Expand-Archive -Path '${tarballPath}' -DestinationPath '${tmpDir}' -Force"`, { stdio: 'pipe' });
     } else {
+      // macOS, Linux, or tar.gz on Windows: use tar
       execSync(`tar -xzf "${tarballPath}" -C "${tmpDir}"`, { stdio: 'pipe' });
     }
 
@@ -195,7 +207,6 @@ async function performUpdate(release) {
       const srcFile = path.join(extractedDir, file);
       const destFile = path.join(rootDir, file);
       if (fs.existsSync(srcFile)) {
-        // Don't overwrite if the file is in preserve list
         if (!preserveFiles.includes(file)) {
           fs.copyFileSync(srcFile, destFile);
         }
@@ -218,12 +229,10 @@ async function performUpdate(release) {
   } catch (err) {
     console.error(`\n${red('✖')} Update failed: ${err.message}`);
 
-    // Cleanup temp directory
     const tmpDir = path.join(projectRoot(), `.syncforge-update-tmp`);
     if (fs.existsSync(tmpDir)) {
       fs.rmSync(tmpDir, { recursive: true });
     }
-
     return false;
   }
 }
@@ -245,16 +254,18 @@ async function main() {
 
   const { release, latestVersion } = result;
 
-  const needsUpdate = isNewer(latestVersion, CURRENT_VERSION);
+  const currentVersion = readCurrentVersion();
+  const needsUpdate = isNewer(latestVersion, currentVersion);
 
   if (!needsUpdate && !force) {
-    console.log(`\n${green('✔')} SyncForge is up to date (${bold(CURRENT_VERSION)})`);
+    console.log(`\n${green('✔')} SyncForge is up to date (${bold(currentVersion)})`);
     return;
   }
 
   if (checkOnly) {
     if (needsUpdate) {
-      console.log(`\n${yellow('→')} Update available: ${bold(CURRENT_VERSION)} → ${bold(latestVersion)}`);
+      const cv = readCurrentVersion();
+      console.log(`\n${yellow('→')} Update available: ${bold(cv)} → ${bold(latestVersion)}`);
       console.log(`  ${dim('Run without --check to update')}`);
     }
     return;

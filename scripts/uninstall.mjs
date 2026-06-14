@@ -30,7 +30,9 @@ const bold = (s) => color(s, '1');
 const dim = (s) => color(s, '2');
 
 function projectRoot() {
-  return path.resolve(new URL('.', import.meta.url).pathname, '..');
+  const url = new URL('.', import.meta.url).pathname;
+  // Handle Windows paths from file:// URLs (e.g. /C:/Users/...)
+  return path.resolve(url.startsWith('/') && /^\/[A-Za-z]:/.test(url) ? url.slice(1) : url, '..');
 }
 
 function homeDir() {
@@ -126,14 +128,18 @@ function findSyncForgeArtifacts() {
 function getDirSize(dirPath) {
   try {
     let totalSize = 0;
+    let count = 0;
     function walk(dir) {
+      if (count > 1000) return; // Cap for performance
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       for (const entry of entries) {
+        if (count > 1000) return;
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
           walk(fullPath);
         } else if (entry.isFile()) {
           totalSize += fs.statSync(fullPath).size;
+          count++;
         }
       }
     }
@@ -192,9 +198,9 @@ function removeInstallations(installations) {
 
 function isGlobalInstall() {
   try {
-    const globalPrefix = execSync('npm config get prefix', { encoding: 'utf-8' }).trim();
-    const root = projectRoot();
-    return root.startsWith(globalPrefix);
+    const output = execSync('npm ls -g syncforge --depth=0 --json', { encoding: 'utf-8', stdio: 'pipe' });
+    const parsed = JSON.parse(output);
+    return parsed.dependencies && parsed.dependencies.syncforge !== undefined;
   } catch {
     return false;
   }

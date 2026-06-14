@@ -4,6 +4,34 @@
 
 Git manages history. SyncForge manages live collaboration.
 
+[![Release](https://img.shields.io/github/v/release/katrate/syncforge)](https://github.com/katrate/syncforge/releases)
+[![License](https://img.shields.io/github/license/katrate/syncforge)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-blue)](https://github.com/katrate/syncforge)
+
+---
+
+## ⚡ Quick Install
+
+### macOS / Linux
+```bash
+curl -fsSL https://raw.githubusercontent.com/katrate/syncforge/master/scripts/install.sh | bash
+```
+
+### Windows (PowerShell)
+```powershell
+powershell -c "irm https://raw.githubusercontent.com/katrate/syncforge/master/scripts/install.ps1 | iex"
+```
+
+### Any OS (manual)
+```bash
+git clone https://github.com/katrate/syncforge.git
+cd syncforge
+npm install
+npm run build
+```
+
+---
+
 ## What is SyncForge?
 
 SyncForge is a real-time project synchronization platform that allows multiple developers to work on the same project simultaneously from their own computers while keeping every project file synchronized automatically.
@@ -12,61 +40,63 @@ Unlike cloud IDEs, remote desktops, or screen sharing tools, every collaborator 
 
 Whenever a file changes on one machine, the change is automatically propagated to all connected collaborators.
 
+---
+
 ## Quick Start
 
 ### 1. Start the server
 
 ```bash
-# Start the sync server (requires Node.js 18+)
+# One person runs the server
 npx tsx src/server.ts
-
-# Or with Docker for the infrastructure stack
-docker compose up -d
-SYNCFORGE_PORT=4200 npx tsx src/server.ts
 ```
 
 ### 2. Create a project
 
 ```bash
-# In your project directory
-npx tsx src/agent.ts init --name "my-app"
+# In your project directory (the owner does this)
+npm run dev -- init --name "my-app"
 ```
 
-This creates a project on the sync server and returns an invite token.
+This creates a project and returns an invite token.
 
 ### 3. Share with collaborators
 
 ```bash
-syncforge share
+npm run dev -- share
 ```
 
-### 4. Join a project
+### 4. Join the project
 
 ```bash
 # On a collaborator's machine
-syncforge join <project-id>
+npm run dev -- join <project-id>
 ```
 
 ### 5. Start syncing
 
 ```bash
-# On each machine (including the owner)
-syncforge start
+# On every machine (owner + collaborators)
+npm run dev -- start
 ```
 
-Now any file change on any machine is instantly propagated to all collaborators.
+Now any file change on any machine is instantly synced to everyone.
+
+---
 
 ## CLI Commands
 
 | Command | Description |
 |---|---|
 | `syncforge init` | Create a new project |
-| `syncforge share` | Generate an invite link |
+| `syncforge share` | Share invite link with collaborators |
 | `syncforge join <id>` | Join an existing project |
 | `syncforge start` | Begin file synchronization |
 | `syncforge status` | Show project and sync status |
 | `syncforge stop` | Stop synchronization (Ctrl+C) |
 | `syncforge leave` | Leave the current project |
+
+---
 
 ## Architecture
 
@@ -80,8 +110,8 @@ Now any file change on any machine is instantly propagated to all collaborators.
         │                    │                    │
         ▼                    ▼                    ▼
   ┌──────────┐        ┌──────────┐        ┌──────────┐
-  │  Agent A │        │  Agent B │        │  Agent C │
-  │ (Owner)  │        │ (Dev)    │        │ (Dev)    │
+  │  Agent   │        │  Agent   │        │  Agent   │
+  │ (macOS)  │        │ (Linux)  │        │ (Windows)│
   └────┬─────┘        └────┬─────┘        └────┬─────┘
        │                   │                   │
        ▼                   ▼                   ▼
@@ -93,9 +123,44 @@ Now any file change on any machine is instantly propagated to all collaborators.
 
 Every user owns a complete local copy. The server coordinates synchronization.
 
+---
+
+## Cross-Platform Support
+
+SyncForge runs on **macOS, Linux, and Windows** because it's built on:
+
+| Component | Technology | macOS | Linux | Windows |
+|---|---|---|---|---|
+| Runtime | Node.js 18+ | ✅ | ✅ | ✅ |
+| File Watching | Chokidar | ✅ | ✅ | ✅ |
+| WebSocket | ws | ✅ | ✅ | ✅ |
+| CLI | Commander | ✅ | ✅ | ✅ |
+| Install script | bash | ✅ | ✅ | — |
+| Install script | PowerShell | — | — | ✅ |
+| Installation | npm | ✅ | ✅ | ✅ |
+| Dev server | Hot-reload | ✅ | ✅ | ✅ |
+
+### Platform-Specific Notes
+
+**macOS:**
+- File watching uses `fsevents` (native macOS API) — ultra low latency
+- `.syncignore` can include `*.DS_Store`
+
+**Linux:**
+- File watching uses `inotify` (kernel-level)
+- Works on all distros (Ubuntu, Fedora, Arch, etc.)
+
+**Windows:**
+- File watching uses `ReadDirectoryChangesW` (native Windows API)
+- `.syncignore` can include `Thumbs.db`
+- Run PowerShell as Administrator if you want global `syncforge` command
+- Use Git Bash or WSL for bash-style workflows
+
+---
+
 ## Sync Ignore
 
-Create a `.syncignore` file (shared) or `.syncignore.local` (local-only) to exclude files from synchronization:
+Create a `.syncignore` file (shared) or `.syncignore.local` (local-only) to exclude files from sync:
 
 ```
 # .syncignore
@@ -103,24 +168,34 @@ node_modules/
 dist/
 .env
 .DS_Store
+Thumbs.db
 ```
 
-## Conflict Resolution
+---
 
-**Last Write Wins (LWW)** — the most recent change to a file is authoritative. Simple, predictable, and sufficient for MVP.
+## Project Structure
 
-## Tech Stack
+```
+syncforge/
+├── bin/            # CLI wrapper for global install
+├── scripts/        # Install / update / uninstall scripts
+├── src/
+│   ├── cli/        # Commands: init, share, join, start, stop, status, leave
+│   ├── server/     # HTTP + WebSocket server
+│   ├── agent/      # File watcher, sync client, updater
+│   ├── protocol/   # Message types, event types
+│   └── config/     # Environment variable loader
+├── docker-compose.yml
+├── DOCUMENTATION.md
+└── README.md
+```
 
-- **Runtime:** Node.js / TypeScript
-- **Real-time:** WebSocket (`ws`)
-- **CLI:** Commander + Chalk + Ora
-- **File Watching:** Chokidar
-- **HTTP:** Express
+---
 
 ## Development
 
 ```bash
-# Install dependencies
+# Install
 npm install
 
 # Typecheck
@@ -133,15 +208,40 @@ npm run build
 npm run server
 
 # Run CLI
-npm run dev init
+npm run dev -- init --name "my-project"
+npm run dev -- start
+
+# Update
+npm run update
+
+# Uninstall
+npm run uninstall
 ```
 
-## Future Features
+---
 
-- Presence indicators (who's editing what)
-- Activity feed
-- Project snapshots
-- Offline sync queue
-- End-to-end encryption
-- Git integration
-- Team permissions
+## Tech Stack
+
+- **Runtime:** Node.js / TypeScript (cross-platform)
+- **Real-time:** WebSocket (`ws`)
+- **CLI:** Commander + Chalk + Ora
+- **File Watching:** Chokidar (fsevents / inotify / ReadDirectoryChangesW)
+- **HTTP:** Express
+
+---
+
+## Documentation
+
+See **[DOCUMENTATION.md](DOCUMENTATION.md)** for the full reference:
+- Architecture deep-dive
+- Protocol specification
+- API reference
+- Security model
+- Troubleshooting guide
+- Complete project docs
+
+---
+
+## License
+
+[MIT](LICENSE)
