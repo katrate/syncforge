@@ -22,19 +22,18 @@
 
 import { existsSync } from 'fs';
 import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 const distPath = resolve(ROOT, 'dist', 'agent.js');
 const srcPath = resolve(ROOT, 'src', 'agent.ts');
-const tsxPath = resolve(ROOT, 'node_modules', '.bin', 'tsx');
 const argv = process.argv.slice(2);
 
 async function main() {
   // Try built version first (dist/agent.js)
   if (existsSync(distPath)) {
-    const { runCLI } = await import(distPath);
+    const { runCLI } = await import(pathToFileURL(distPath).href);
     await runCLI(argv);
     return;
   }
