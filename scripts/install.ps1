@@ -61,16 +61,8 @@ function dim   { Write-Host "  $args" -ForegroundColor DarkGray }
 
 # ─── Helper: Run npm via cmd.exe to bypass PowerShell execution policy ───
 # On Windows, PowerShell often blocks npm.ps1 due to Restricted execution policy.
-# Running via cmd /c uses npm.cmd instead, which works regardless of policy.
-
-function Invoke-Npm([string]$args) {
-  $process = Start-Process -FilePath "cmd.exe" -ArgumentList "/c npm $args" -NoNewWindow -Wait -PassThru -RedirectStandardOutput "$env:TEMP\npm_out.txt" -RedirectStandardError "$env:TEMP\npm_err.txt"
-  $stdout = Get-Content "$env:TEMP\npm_out.txt" -Raw
-  $stderr = Get-Content "$env:TEMP\npm_err.txt" -Raw
-  Remove-Item "$env:TEMP\npm_out.txt" -Force -ErrorAction SilentlyContinue
-  Remove-Item "$env:TEMP\npm_err.txt" -Force -ErrorAction SilentlyContinue
-  return @{ ExitCode = $process.ExitCode; StdOut = $stdout; StdErr = $stderr }
-}
+# Running via cmd /c uses npm.cmd (the batch wrapper) instead, which works
+# regardless of PowerShell's execution policy.
 
 # ─── Main ───
 
@@ -159,20 +151,16 @@ Set-Location $Dir
 # Step 3: Install dependencies
 
 info "Installing dependencies..."
-$npmResult = Invoke-Npm "install --loglevel=warn"
-if ($npmResult.StdOut) { dim $npmResult.StdOut.Trim() }
-if ($npmResult.StdErr) { dim $npmResult.StdErr.Trim() }
-if ($npmResult.ExitCode -ne 0) { fail "npm install failed (exit code: $($npmResult.ExitCode))" }
+cmd /c "npm install --loglevel=warn"
+if ($LASTEXITCODE -ne 0) { fail "npm install failed (exit code: $LASTEXITCODE)" }
 ok "Dependencies installed"
 
 # Step 4: Build
 
 if (-not $SkipBuild) {
   info "Building..."
-  $buildResult = Invoke-Npm "run build"
-  if ($buildResult.StdOut) { dim $buildResult.StdOut.Trim() }
-  if ($buildResult.StdErr) { dim $buildResult.StdErr.Trim() }
-  if ($buildResult.ExitCode -ne 0) { fail "npm run build failed (exit code: $($buildResult.ExitCode))" }
+  cmd /c "npm run build"
+  if ($LASTEXITCODE -ne 0) { fail "npm run build failed (exit code: $LASTEXITCODE)" }
   ok "Built successfully"
 }
 
@@ -191,10 +179,8 @@ if ($doGlobal -and $HAS_CONSOLE) {
 
 if ($doGlobal) {
   info "Installing globally..."
-  $globalResult = Invoke-Npm "install -g ."
-  if ($globalResult.StdOut) { dim $globalResult.StdOut.Trim() }
-  if ($globalResult.StdErr) { dim $globalResult.StdErr.Trim() }
-  if ($globalResult.ExitCode -eq 0) {
+  cmd /c "npm install -g ."
+  if ($LASTEXITCODE -eq 0) {
     ok "Installed globally! Run: syncforge"
   } else {
     warn "Global install failed (try running PowerShell as Administrator)"
