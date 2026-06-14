@@ -10,9 +10,12 @@ import { initCommand } from './commands/init.js';
 import { shareCommand } from './commands/share.js';
 import { joinCommand } from './commands/join.js';
 import { startCommand } from './commands/start.js';
+import { serverCommand } from './commands/server.js';
 import { statusCommand } from './commands/status.js';
 import { leaveCommand } from './commands/leave.js';
 import { stopCommand } from './commands/stop.js';
+import { updateCommand } from './commands/update.js';
+import { uninstallCommand } from './commands/uninstall.js';
 import { readConfig } from './config-store.js';
 import { VERSION } from './version.js';
 
@@ -75,6 +78,31 @@ export function createCLI(): Command {
     .description('Stop synchronization')
     .action(async () => {
       await stopCommand();
+    });
+
+  program
+    .command('server')
+    .description('Start the sync server (HTTP + WebSocket)')
+    .action(async () => {
+      await serverCommand();
+    });
+
+  program
+    .command('update')
+    .description('Check for and apply updates')
+    .option('--check', 'Only check for updates, don\'t apply')
+    .option('--force', 'Force reinstall even if up to date')
+    .action(async (options) => {
+      await updateCommand(options);
+    });
+
+  program
+    .command('uninstall')
+    .description('Remove SyncForge from the system')
+    .option('--check', 'Preview what would be removed')
+    .option('--force', 'Non-interactive uninstall')
+    .action(async (options) => {
+      await uninstallCommand(options);
     });
 
   return program;

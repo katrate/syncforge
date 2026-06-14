@@ -6,12 +6,11 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/agent.ts",
-    "server": "tsx src/server.ts",
-    "start": "tsx src/agent.ts start",
-    "init": "tsx src/agent.ts init",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
+    "server": "tsx src/server.ts",
+    "init": "tsx src/agent.ts init",
+    "start": "tsx src/agent.ts start",
     "update": "node scripts/update.mjs",
     "update:check": "node scripts/update.mjs --check",
     "uninstall": "node scripts/uninstall.mjs"

@@ -5,15 +5,19 @@
  *
  * This file is used when syncforge is installed globally via npm.
  * It forwards all arguments to the agent's CLI handler.
+ * Runs directly from TypeScript source via tsx — no build needed.
  *
  * Usage:
- *   syncforge init
- *   syncforge share
- *   syncforge join <id>
- *   syncforge start
- *   syncforge status
- *   syncforge leave
- *   syncforge stop
+ *   syncforge server           Start the sync server
+ *   syncforge init             Create a new project
+ *   syncforge share            Generate invite link
+ *   syncforge join <id>        Join a project
+ *   syncforge start            Start file sync
+ *   syncforge status           Show status
+ *   syncforge leave            Leave a project
+ *   syncforge stop             Stop sync
+ *   syncforge update           Check for updates
+ *   syncforge uninstall        Remove SyncForge
  */
 
 import { existsSync } from 'fs';
@@ -21,24 +25,24 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const distPath = resolve(__dirname, '..', 'dist', 'cli', 'index.js');
-const srcPath = resolve(__dirname, '..', 'src', 'agent.ts');
+const ROOT = resolve(__dirname, '..');
+const distPath = resolve(ROOT, 'dist', 'agent.js');
+const srcPath = resolve(ROOT, 'src', 'agent.ts');
+const tsxPath = resolve(ROOT, 'node_modules', '.bin', 'tsx');
 const argv = process.argv.slice(2);
 
 async function main() {
-  // Try built version first
+  // Try built version first (dist/agent.js)
   if (existsSync(distPath)) {
     const { runCLI } = await import(distPath);
     await runCLI(argv);
     return;
   }
 
-  // Fall back to tsx for source version
+  // Run from source via tsx — no build needed
   if (existsSync(srcPath)) {
-    console.warn('SyncForge is not built. Running from source with tsx...');
     const { execSync } = await import('child_process');
-    const args = argv.map(a => `"${a}"`).join(' ');
-    execSync(`npx tsx "${srcPath}" ${args}`, { stdio: 'inherit' });
+    execSync(`npx tsx "${srcPath}" ${argv.map(a => `"${a}"`).join(' ')}`, { stdio: 'inherit' });
     return;
   }
 
