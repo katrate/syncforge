@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: syncforge-postgres
+    environment:
+      POSTGRES_DB: syncforge
+      POSTGRES_USER: syncforge
+      POSTGRES_PASSWORD: syncforge_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - syncforge_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U syncforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: syncforge-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: syncforge-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: syncforge
+      MINIO_ROOT_PASSWORD: syncforge_dev
+    ports:
+      - "9000:9000"   # S3-compatible API
+      - "9001:9001"   # Console UI
+    volumes:
+      - syncforge_minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  syncforge_pgdata:
+  syncforge_minio:

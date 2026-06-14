@@ -1,0 +1,50 @@
+# SyncForge ignore file
+# Files and directories matching these patterns will be excluded
+# from synchronization.
+
+# Dependencies
+node_modules/
+vendor/
+.bundle/
+
+# Build output
+dist/
+build/
+.next/
+.target/
+out/
+
+# Environment files
+.env
+.env.*
+secrets.json
+*.key
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+.cache/
+tmp/
+*.log
+*.tmp
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# SyncForge
+.syncignore
+.syncignore.local
+.syncforge.json
+syncforge_data/
