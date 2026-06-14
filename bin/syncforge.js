@@ -3,28 +3,6 @@
 /**
  * SyncForge CLI — Global entry point
  *
- * This file is used when syncforge is installed globally via npm.
- * It forwards all arguments to the agent's CLI handler.
- * Runs directly from TypeScript source via tsx — no build needed.
- *
- * Usage:
- *   syncforge server           Start the sync server
- *   syncforge init             Create a new project
- *   syncforge share            Generate invite link
- *   syncforge join <id>        Join a project
- *   syncforge start            Start file sync
- *   syncforge status           Show status
- *   syncforge leave            Leave a project
- *   syncforge stop             Stop sync
- *   syncforge update           Check for updates
- *   syncforge uninstall        Remove SyncForge
- */
-
-#!/usr/bin/env node
-
-/**
- * SyncForge CLI — Global entry point
- *
  * Usage:
  *   syncforge server    syncforge init    syncforge join <id>
  *   syncforge start     syncforge status  syncforge leave
