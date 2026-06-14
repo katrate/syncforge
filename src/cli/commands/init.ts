@@ -4,13 +4,15 @@
  * Usage: syncforge init [--name <project-name>]
  *
  * Creates a project on the sync server and returns
- * a project ID and invite token.
+ * a project ID and invite token. Auto-starts the server
+ * if it's not already running.
  */
 
 import { loadConfig } from '../../config/index.js';
 import { v4 as uuid } from 'uuid';
-import { readConfig, saveConfig, type AgentConfig } from '../config-store.js';
+import { saveConfig, type AgentConfig } from '../config-store.js';
 import { startCommand } from './start.js';
+import { SyncForgeServer } from '../../server/app.js';
 import chalk from 'chalk';
 import path from 'path';
 import os from 'os';
@@ -25,6 +27,27 @@ export async function initCommand(options: InitOptions): Promise<void> {
   const config = loadConfig();
   const projectName = options.name || path.basename(config.projectDir);
   const userId = uuid().slice(0, 8);
+
+  // Check if the sync server is already running (quick 2s timeout)
+  console.log(chalk.blue('◇'), 'Checking sync server...');
+  let serverRunning = false;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2000);
+    const healthRes = await fetch(`${API_BASE}/health`, { signal: controller.signal });
+    clearTimeout(timeout);
+    serverRunning = healthRes.ok;
+  } catch {
+    serverRunning = false;
+  }
+
+  if (!serverRunning) {
+    console.log(chalk.blue('◇'), 'Starting sync server...');
+    await new SyncForgeServer(config).start();
+    console.log(chalk.green('✔'), 'Server started');
+  } else {
+    console.log(chalk.green('✔'), 'Server is running');
+  }
 
   console.log(chalk.blue('◇'), 'Creating project...');
 
@@ -98,10 +121,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
     } else {
       message = String(err);
     }
-    console.error(chalk.red('✖'), `Connection failed: ${message}`);
-    console.log(chalk.dim('Start the server with: syncforge start --server'));
+    console.error(chalk.red('✖'), `Failed: ${message}`);
     process.exit(1);
   }
 }
-
-
