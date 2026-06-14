@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          # Get the previous tag for changelog
+          PREV_TAG=$(git tag --sort=-version:refname | head -n 2 | tail -n 1 || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            echo "changes<<EOF" >> $GITHUB_OUTPUT
+            git log --oneline --no-decorate ${PREV_TAG}..${GITHUB_REF_NAME} 2>/dev/null | while read line; do
+              echo "- $line"
+            done >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "changes=Initial release" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: SyncForge ${{ github.ref_name }}
+          body: |
+            ## SyncForge ${{ github.ref_name }}
+
+            ### Changes since last release:
+            ${{ steps.notes.outputs.changes }}
+
+            ---
+            Install: https://github.com/katrate/syncforge#installation
+          draft: false
+          prerelease: false
