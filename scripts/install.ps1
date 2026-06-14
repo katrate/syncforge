@@ -59,6 +59,19 @@ function warn  { Write-Host "⚠ " -ForegroundColor $YELLOW -NoNewline; Write-Ho
 function fail  { Write-Host "✖ " -ForegroundColor $RED -NoNewline; Write-Host "$args"; exit 1 }
 function dim   { Write-Host "  $args" -ForegroundColor DarkGray }
 
+# ─── Helper: Run npm via cmd.exe to bypass PowerShell execution policy ───
+# On Windows, PowerShell often blocks npm.ps1 due to Restricted execution policy.
+# Running via cmd /c uses npm.cmd instead, which works regardless of policy.
+
+function Invoke-Npm([string]$args) {
+  $process = Start-Process -FilePath "cmd.exe" -ArgumentList "/c npm $args" -NoNewWindow -Wait -PassThru -RedirectStandardOutput "$env:TEMP\npm_out.txt" -RedirectStandardError "$env:TEMP\npm_err.txt"
+  $stdout = Get-Content "$env:TEMP\npm_out.txt" -Raw
+  $stderr = Get-Content "$env:TEMP\npm_err.txt" -Raw
+  Remove-Item "$env:TEMP\npm_out.txt" -Force -ErrorAction SilentlyContinue
+  Remove-Item "$env:TEMP\npm_err.txt" -Force -ErrorAction SilentlyContinue
+  return @{ ExitCode = $process.ExitCode; StdOut = $stdout; StdErr = $stderr }
+}
+
 # ─── Main ───
 
 Write-Host ""
@@ -69,13 +82,39 @@ Write-Host ""
 
 info "Checking prerequisites..."
 
+# Check PowerShell execution policy (common issue with npm on Windows)
+$executionPolicy = Get-ExecutionPolicy
+if ($executionPolicy -eq 'Restricted') {
+  warn "PowerShell execution policy is 'Restricted' — npm.ps1 may be blocked."
+  warn "The installer will use cmd.exe to run npm commands as a workaround."
+  dim "  To fix permanently, run as Administrator: Set-ExecutionPolicy RemoteSigned -Scope CurrentUser"
+}
+
 $missing = @()
 try { $null = (Get-Command node -ErrorAction Stop) } catch { $missing += "Node.js" }
 try { $null = (Get-Command git -ErrorAction Stop) } catch { $missing += "Git" }
-try { $null = (Get-Command npm -ErrorAction Stop) } catch { $missing += "npm" }
 
 if ($missing.Count -gt 0) {
   fail "Missing prerequisites: $($missing -join ', '). Download from https://nodejs.org and https://git-scm.com"
+}
+
+# Check if npm is available (via cmd.exe as fallback)
+$npmAvailable = $false
+try {
+  $null = (Get-Command npm -ErrorAction Stop)
+  $npmAvailable = $true
+} catch {
+  # Try via cmd.exe
+  try {
+    cmd /c "npm --version" 2>$null | Out-Null
+    $npmAvailable = $true
+  } catch {
+    $npmAvailable = $false
+  }
+}
+
+if (-not $npmAvailable) {
+  fail "npm is required (comes with Node.js). Make sure Node.js is installed correctly."
 }
 
 $nodeVer = node --version
@@ -120,16 +159,20 @@ Set-Location $Dir
 # Step 3: Install dependencies
 
 info "Installing dependencies..."
-npm install --loglevel=warn
-if ($LASTEXITCODE -ne 0) { fail "npm install failed" }
+$npmResult = Invoke-Npm "install --loglevel=warn"
+if ($npmResult.StdOut) { dim $npmResult.StdOut.Trim() }
+if ($npmResult.StdErr) { dim $npmResult.StdErr.Trim() }
+if ($npmResult.ExitCode -ne 0) { fail "npm install failed (exit code: $($npmResult.ExitCode))" }
 ok "Dependencies installed"
 
 # Step 4: Build
 
 if (-not $SkipBuild) {
   info "Building..."
-  npm run build
-  if ($LASTEXITCODE -ne 0) { fail "npm run build failed" }
+  $buildResult = Invoke-Npm "run build"
+  if ($buildResult.StdOut) { dim $buildResult.StdOut.Trim() }
+  if ($buildResult.StdErr) { dim $buildResult.StdErr.Trim() }
+  if ($buildResult.ExitCode -ne 0) { fail "npm run build failed (exit code: $($buildResult.ExitCode))" }
   ok "Built successfully"
 }
 
@@ -148,13 +191,13 @@ if ($doGlobal -and $HAS_CONSOLE) {
 
 if ($doGlobal) {
   info "Installing globally..."
-  $globalOutput = npm install -g . 2>&1
-  $globalExitCode = $LASTEXITCODE
-  if ($globalExitCode -eq 0) {
+  $globalResult = Invoke-Npm "install -g ."
+  if ($globalResult.StdOut) { dim $globalResult.StdOut.Trim() }
+  if ($globalResult.StdErr) { dim $globalResult.StdErr.Trim() }
+  if ($globalResult.ExitCode -eq 0) {
     ok "Installed globally! Run: syncforge"
   } else {
     warn "Global install failed (try running PowerShell as Administrator)"
-    dim "  Error: $globalOutput"
     dim "  You can still use: npx tsx $Dir\src\agent.ts"
   }
 }
