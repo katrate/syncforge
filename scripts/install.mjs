@@ -126,10 +126,13 @@ async function main() {
   console.log(`\n${green('✔')} SyncForge installed successfully!`);
   console.log();
   console.log(`  ${bold('Location:')} ${targetDir}`);
-  console.log(`  ${bold('Run:')}       cd ${targetDir}`);
-  console.log(`  ${bold('Server:')}    npm run server`);
-  console.log(`  ${bold('Create:')}    npm run dev -- init --name "my-project"`);
-  console.log(`  ${bold('Sync:')}      npm run dev -- start`);
+  console.log();
+  console.log(`  ${green('syncforge server')}    — Start the sync server`);
+  console.log(`  ${green('syncforge init')}      — Create a project`);
+  console.log(`  ${green('syncforge join <id>')} — Join a project`);
+  console.log(`  ${green('syncforge update')}    — Check for updates`);
+  console.log();
+  console.log(dim('(these commands work after global install from anywhere)'));
   console.log();
   console.log(dim('Documentation: https://github.com/katrate/syncforge/blob/master/DOCUMENTATION.md'));
 }

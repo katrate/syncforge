@@ -48,39 +48,40 @@ Whenever a file changes on one machine, the change is automatically propagated t
 
 ```bash
 # One person runs the server
-npx tsx src/server.ts
+syncforge server
 ```
 
 ### 2. Create a project
 
 ```bash
 # In your project directory (the owner does this)
-npm run dev -- init --name "my-app"
+syncforge init --name "my-app"
 ```
 
-This creates a project and returns an invite token.
+This creates a project, auto-starts the server if not running, and begins syncing.
 
 ### 3. Share with collaborators
 
 ```bash
-npm run dev -- share
+syncforge share
 ```
 
-### 4. Join the project
+### 4. Join the project (collaborator)
 
 ```bash
-# On a collaborator's machine
-npm run dev -- join <project-id>
+# On a collaborator's machine (replace IP with the server's address)
+syncforge join <project-id> --server http://192.168.1.5:4200
 ```
+
+The --server flag saves the URL to config — only needed once.
 
 ### 5. Start syncing
 
 ```bash
-# On every machine (owner + collaborators)
-npm run dev -- start
+# init and join auto-start syncing — no extra command needed
 ```
 
-Now any file change on any machine is instantly synced to everyone.
+After init/join, sync starts automatically. Any file change on any machine is instantly synced to everyone. Press Ctrl+C to stop.
 
 ---
 
@@ -88,13 +89,16 @@ Now any file change on any machine is instantly synced to everyone.
 
 | Command | Description |
 |---|---|
-| `syncforge init` | Create a new project |
-| `syncforge share` | Share invite link with collaborators |
-| `syncforge join <id>` | Join an existing project |
-| `syncforge start` | Begin file synchronization |
-| `syncforge status` | Show project and sync status |
-| `syncforge stop` | Stop synchronization (Ctrl+C) |
-| `syncforge leave` | Leave the current project |
+| `syncforge server`  | Start the sync server (auto-started by init if needed) |
+| `syncforge init`    | Create a project (auto-starts server + sync) |
+| `syncforge share`   | Share invite link with collaborators |
+| `syncforge join <id>` | Join a project (auto-starts sync) |
+| `syncforge start`   | Begin file synchronization |
+| `syncforge status`  | Show project and sync status |
+| `syncforge stop`    | Stop synchronization (Ctrl+C) |
+| `syncforge leave`   | Leave the current project |
+| `syncforge update`  | Check for updates |
+| `syncforge uninstall` | Remove SyncForge |
 
 ---
 
@@ -145,16 +149,18 @@ SyncForge runs on **macOS, Linux, and Windows** because it's built on:
 **macOS:**
 - File watching uses `fsevents` (native macOS API) — ultra low latency
 - `.syncignore` can include `*.DS_Store`
+- Run `brew install node` if Node.js is missing
 
 **Linux:**
 - File watching uses `inotify` (kernel-level)
 - Works on all distros (Ubuntu, Fedora, Arch, etc.)
+- Run `sudo apt install nodejs npm` if needed
 
 **Windows:**
 - File watching uses `ReadDirectoryChangesW` (native Windows API)
 - `.syncignore` can include `Thumbs.db`
-- Run PowerShell as Administrator if you want global `syncforge` command
-- Use Git Bash or WSL for bash-style workflows
+- **Restart your terminal** after global install if `syncforge` isn't recognized
+- If still not found, add `%APPDATA%\npm` to your PATH manually
 
 ---
 
@@ -205,17 +211,17 @@ npm run typecheck
 npm run build
 
 # Run server
-npm run server
+syncforge server
 
 # Run CLI
-npm run dev -- init --name "my-project"
-npm run dev -- start
+syncforge init --name "my-project"
+syncforge start
 
 # Update
-npm run update
+syncforge update
 
 # Uninstall
-npm run uninstall
+syncforge uninstall
 ```
 
 ---

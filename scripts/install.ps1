@@ -59,11 +59,6 @@ function warn  { Write-Host "⚠ " -ForegroundColor $YELLOW -NoNewline; Write-Ho
 function fail  { Write-Host "✖ " -ForegroundColor $RED -NoNewline; Write-Host "$args"; exit 1 }
 function dim   { Write-Host "  $args" -ForegroundColor DarkGray }
 
-# ─── Helper: Run npm via cmd.exe to bypass PowerShell execution policy ───
-# On Windows, PowerShell often blocks npm.ps1 due to Restricted execution policy.
-# Running via cmd /c uses npm.cmd (the batch wrapper) instead, which works
-# regardless of PowerShell's execution policy.
-
 # ─── Main ───
 
 Write-Host ""
@@ -164,7 +159,7 @@ if (-not $SkipBuild) {
   ok "Built successfully"
 }
 
-# Step 5: Global install (optional)
+# Step 5: Global install (optional) — makes 'syncforge' available from anywhere
 
 $doGlobal = $NoGlobal -eq $false
 
@@ -194,8 +189,19 @@ Write-Host ""
 ok "SyncForge installed successfully!"
 Write-Host ""
 Write-Host "  Location: $Dir" -ForegroundColor White
-Write-Host "  Server:   npm run server"
-Write-Host "  Create:   npm run dev -- init --name 'my-project'"
-Write-Host "  Sync:     npm run dev -- start"
+Write-Host ""
+Write-Host "  syncforge server      — Start the sync server" -ForegroundColor White
+Write-Host "  syncforge init        — Create a project" -ForegroundColor White
+Write-Host "  syncforge join <id>   — Join a project" -ForegroundColor White
+Write-Host "  syncforge update      — Check for updates" -ForegroundColor White
+Write-Host ""
+Write-Host "  (these commands work after global install from anywhere)" -ForegroundColor DarkGray
+Write-Host ""
+if ($doGlobal) {
+  Write-Host "  If 'syncforge' is not recognized, restart your terminal" -ForegroundColor Yellow
+  Write-Host "  or add to PATH manually:" -ForegroundColor Yellow
+  Write-Host '    [Environment]::SetEnvironmentVariable('"'"'Path'"'"',' -ForegroundColor DarkGray
+  Write-Host "      [Environment]::GetEnvironmentVariable('Path','User') + ';$env:APPDATA\npm','User')" -ForegroundColor DarkGray
+}
 Write-Host ""
 Write-Host "Documentation: https://github.com/$REPO/blob/$BRANCH/DOCUMENTATION.md" -ForegroundColor DarkGray
