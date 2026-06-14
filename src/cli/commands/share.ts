@@ -10,6 +10,7 @@
 import { loadConfig } from '../../config/index.js';
 import { readConfig } from '../config-store.js';
 import chalk from 'chalk';
+import os from 'os';
 
 export async function shareCommand(): Promise<void> {
   const agentConfig = readConfig();
@@ -35,10 +36,24 @@ export async function shareCommand(): Promise<void> {
 
     console.log(chalk.green('✔'), `Project: ${chalk.bold(project.name)}`);
     console.log();
-    console.log(`  ${chalk.bold('Invite Link:')}`);
-    console.log(`  ${chalk.yellow(`syncforge join ${project.id}`)}`);
-    console.log();
-    console.log(`  ${chalk.bold('Direct join:')}  ${chalk.dim(`syncforge join ${project.id}`)}`);
+    // Auto-detect local IP
+    let localIp = 'YOUR_IP';
+    try {
+      const nets = os.networkInterfaces();
+      for (const name of Object.keys(nets)) {
+        for (const net of nets[name] || []) {
+          if (net.family === 'IPv4' && !net.internal) {
+            localIp = net.address;
+            break;
+          }
+        }
+        if (localIp !== 'YOUR_IP') break;
+      }
+    } catch {}
+
+    console.log(`  ${chalk.bold('Invite your partner:')}`);
+    console.log(`  ${chalk.yellow(`syncforge join ${project.id} --server http://${localIp}:4200`)}`);
+    console.log(`  ${chalk.dim('Run the above command on their machine')}`);
     console.log();
     console.log(chalk.dim('Members:'));
     if (project.members.length === 0) {

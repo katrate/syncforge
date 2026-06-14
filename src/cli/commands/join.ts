@@ -14,13 +14,17 @@ import { saveConfig, type AgentConfig, readConfig } from '../config-store.js';
 import chalk from 'chalk';
 import os from 'os';
 
-const API_BASE = process.env.SYNCFORGE_API_URL || 'http://localhost:4200';
-
 interface JoinOptions {
   token?: string;
+  server?: string;
 }
 
 export async function joinCommand(projectIdOrToken: string, options: JoinOptions): Promise<void> {
+  // Priority: --server flag > env var > default
+  // Normalize: add http:// if missing so .replace('http', 'ws') works
+  const rawServer = options.server || process.env.SYNCFORGE_API_URL || 'http://localhost:4200';
+  const API_BASE = rawServer.startsWith('http') ? rawServer : `http://${rawServer}`;
+
   const config = loadConfig();
   const userId = uuid().slice(0, 8);
 
@@ -69,9 +73,11 @@ export async function joinCommand(projectIdOrToken: string, options: JoinOptions
     console.log();
     console.log(`  ${chalk.bold('Project:')}  ${chalk.cyan(data.projectId)}`);
     console.log(`  ${chalk.bold('Owner:')}   ${chalk.dim(data.ownerId)}`);
+    console.log(`  ${chalk.bold('Server:')}  ${chalk.dim(API_BASE)}`);
     console.log();
     console.log(chalk.dim('To start syncing:'));
     console.log(`  ${chalk.bold('syncforge start')}`);
+    console.log(`  ${chalk.dim('(Server URL saved — no need to set it again)')}`);
   } catch (err) {
     let message: string;
     if (err instanceof Error) {

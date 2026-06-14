@@ -66,8 +66,23 @@ export async function initCommand(options: InitOptions): Promise<void> {
     console.log(`  ${chalk.bold('Project ID:')}  ${chalk.cyan(data.projectId)}`);
     console.log(`  ${chalk.bold('Invite Token:')} ${chalk.yellow(data.inviteToken)}`);
     console.log();
-    console.log(chalk.dim('Share the invite token with collaborators:'));
-    console.log(`  ${chalk.bold('syncforge share')}  — to copy the invite link`);
+    // Try to auto-detect local IP for the invite message
+    let localIp = 'YOUR_IP';
+    try {
+      const nets = os.networkInterfaces();
+      for (const name of Object.keys(nets)) {
+        for (const net of nets[name] || []) {
+          if (net.family === 'IPv4' && !net.internal) {
+            localIp = net.address;
+            break;
+          }
+        }
+        if (localIp !== 'YOUR_IP') break;
+      }
+    } catch {}
+
+    console.log(chalk.dim('Tell your partner to run this:'));
+    console.log(`  ${chalk.bold(`syncforge join ${data.projectId} --server http://${localIp}:4200`)}`);
     console.log();
     console.log(chalk.dim('To start syncing:'));
     console.log(`  ${chalk.bold('syncforge start')}`);

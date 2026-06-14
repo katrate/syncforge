@@ -47,6 +47,7 @@ export function createCLI(): Command {
     .description('Join an existing project')
     .argument('<project-id-or-token>', 'Project ID or invite token')
     .option('-t, --token <token>', 'Invite token')
+    .option('-s, --server <url>', 'Server URL (e.g. http://192.168.1.5:4200). Saved to config — only needed once.')
     .action(async (projectIdOrToken, options) => {
       await joinCommand(projectIdOrToken, options);
     });
