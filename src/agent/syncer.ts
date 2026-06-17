@@ -6,7 +6,7 @@
  */
 
 import WebSocket from 'ws';
-import { createMessage, type Message, type AuthOkPayload, type FileChangePayload, type PresencePayload } from '../protocol/messages.js';
+import { createMessage, type Message, type AuthOkPayload, type FileChangePayload, type PresencePayload, type ProjectSnapshotPayload } from '../protocol/messages.js';
 import type { FileEvent } from '../protocol/events.js';
 import type { SyncForgeConfig } from '../config/index.js';
 
@@ -16,6 +16,7 @@ export interface SyncCallbacks {
   onStatusChange: (status: SyncStatus) => void;
   onRemoteChange: (event: FileEvent) => void;
   onPresence: (payload: PresencePayload) => void;
+  onSnapshot: (payload: ProjectSnapshotPayload) => void;
   onError: (code: string, message: string) => void;
 }
 
@@ -100,6 +101,10 @@ export class SyncClient {
 
             case 'file_change':
               this.handleRemoteChange(message.payload as FileChangePayload);
+              break;
+
+            case 'project_snapshot':
+              this.callbacks.onSnapshot(message.payload as ProjectSnapshotPayload);
               break;
 
             case 'presence':

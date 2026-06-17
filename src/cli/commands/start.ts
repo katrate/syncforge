@@ -16,7 +16,7 @@ import { LocalUpdater } from '../../agent/updater.js';
 import { IgnoreParser, createIgnoreParser } from '../../agent/ignore.js';
 import { SyncForgeServer } from '../../server/app.js';
 import type { FileEvent } from '../../protocol/events.js';
-import type { PresencePayload } from '../../protocol/messages.js';
+import type { PresencePayload, ProjectSnapshotPayload } from '../../protocol/messages.js';
 import chalk from 'chalk';
 import ora from 'ora';
 import fs from 'fs/promises';
@@ -45,7 +45,7 @@ export async function startCommand(options: StartOptions): Promise<void> {
 
   // Load ignore patterns
   const ignoreParser = await createIgnoreParser(config.projectDir);
-  const spinner = ora('Initializing sync agent...').start();
+  let spinner = ora('Initializing sync agent...').start();
 
   // Set up the local updater
   const updater = new LocalUpdater(agentConfig.projectDir, ignoreParser);
@@ -76,6 +76,17 @@ export async function startCommand(options: StartOptions): Promise<void> {
       onPresence: (payload: PresencePayload) => {
         const action = payload.action === 'join' ? 'joined' : 'left';
         console.log(chalk.dim(`  ${chalk.magenta('●')} ${payload.userId} ${action} the project`));
+      },
+      onSnapshot: async (payload: ProjectSnapshotPayload) => {
+        spinner = ora(`Receiving project snapshot (${payload.files.length} files)...`).start();
+        try {
+          await updater.applySnapshot(payload.files);
+          spinner.succeed(chalk.green(`Project snapshot applied — ${payload.files.length} files synced`));
+        } catch (err) {
+          spinner.fail(chalk.red('Failed to apply project snapshot'));
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(chalk.red('  ✖'), message);
+        }
       },
       onError: (code, message) => {
         console.error(chalk.red('  ✖'), `[${code}] ${message}`);

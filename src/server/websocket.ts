@@ -2,6 +2,7 @@
  * SyncForge Server — WebSocket Handler
  *
  * Manages WebSocket connections, authentication, and event routing.
+ * Tracks file state per project to support initial snapshot sync.
  */
 
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -15,6 +16,8 @@ import {
   type AuthOkPayload,
   type FileChangePayload,
   type PingPayload,
+  type ProjectSnapshotPayload,
+  type ProjectFileEntry,
   createMessage,
 } from '../protocol/messages.js';
 
@@ -22,6 +25,8 @@ export class SyncWebSocketServer {
   private wss: WebSocketServer;
   private roomManager: RoomManager;
   private auth: Auth;
+  /** In-memory file store per project: projectId -> (filePath -> ProjectFileEntry) */
+  private projectFiles: Map<string, Map<string, ProjectFileEntry>> = new Map();
 
   constructor(wss: WebSocketServer, roomManager: RoomManager, auth: Auth) {
     this.wss = wss;
@@ -77,6 +82,16 @@ export class SyncWebSocketServer {
         projectId,
         sessionId: `${userId}-${projectId}`,
       })));
+
+      // Send project snapshot to the newly joined user
+      const files = this.projectFiles.get(projectId);
+      if (files && files.size > 0) {
+        const snapshotFiles = Array.from(files.values());
+        ws.send(JSON.stringify(createMessage<ProjectSnapshotPayload>('project_snapshot', {
+          files: snapshotFiles,
+          projectId,
+        })));
+      }
     };
 
     // Define file change handler as a local function
@@ -85,6 +100,41 @@ export class SyncWebSocketServer {
       event.senderId = uid;
       event.projectId = pid;
       this.roomManager.broadcastFileEvent(pid, event, uid);
+
+      // Track file state for snapshot sync
+      let eventFiles = this.projectFiles.get(pid);
+      if (!eventFiles) {
+        eventFiles = new Map();
+        this.projectFiles.set(pid, eventFiles);
+      }
+
+      switch (event.changeType) {
+        case 'create':
+        case 'modify':
+          eventFiles.set(event.path, {
+            path: event.path,
+            content: event.content || '',
+            mode: event.mode,
+          });
+          break;
+        case 'delete':
+          eventFiles.delete(event.path);
+          break;
+        case 'rename':
+        case 'move':
+          if (event.oldPath) {
+            const old = eventFiles.get(event.oldPath);
+            eventFiles.delete(event.oldPath);
+            if (old) {
+              eventFiles.set(event.path, {
+                ...old,
+                path: event.path,
+                content: event.content || old.content,
+              });
+            }
+          }
+          break;
+      }
     };
 
     ws.on('message', (data: Buffer) => {
@@ -114,10 +164,17 @@ export class SyncWebSocketServer {
             break;
 
           default:
-            ws.send(JSON.stringify(createMessage('error', { code: 'UNKNOWN_TYPE', message: `Unknown message type: ${message.type}` })));
+            ws.send(JSON.stringify(createMessage('error', {
+              code: 'UNKNOWN_TYPE',
+              message: `Unknown message type: ${message.type}`,
+            })));
+            break;
         }
-      } catch (err) {
-        ws.send(JSON.stringify(createMessage('error', { code: 'PARSE_ERROR', message: 'Failed to parse message' })));
+      } catch {
+        ws.send(JSON.stringify(createMessage('error', {
+          code: 'PARSE_ERROR',
+          message: 'Invalid JSON message',
+        })));
       }
     });
 
@@ -125,6 +182,10 @@ export class SyncWebSocketServer {
       if (heartbeatInterval) clearInterval(heartbeatInterval);
       if (projectId && userId) {
         this.roomManager.removeMember(projectId, userId);
+        // Clean up file state when room is fully vacated
+        if (!this.roomManager.roomExists(projectId)) {
+          this.projectFiles.delete(projectId);
+        }
       }
     });
 
@@ -132,6 +193,10 @@ export class SyncWebSocketServer {
       if (heartbeatInterval) clearInterval(heartbeatInterval);
       if (projectId && userId) {
         this.roomManager.removeMember(projectId, userId);
+        // Clean up file state when room is fully vacated
+        if (!this.roomManager.roomExists(projectId)) {
+          this.projectFiles.delete(projectId);
+        }
       }
     });
   }
